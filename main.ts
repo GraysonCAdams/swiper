@@ -72,31 +72,32 @@ function createSwipeIndentExtension(getEditor: () => any) {
             }
             
             this.isTrackingGesture = true;
+            // Prevent default immediately to block sidebar gestures from the start
+            e.preventDefault();
+            e.stopImmediatePropagation();
         }
 
         private onTouchMove(e: TouchEvent) {
             // Safety check: ensure we have touches
             if (!e.touches || e.touches.length === 0) return;
             
-            // If we're tracking a gesture and it's horizontal, prevent default to stop sidebar swipe
+            // If we're tracking a gesture, always prevent default to block sidebar gestures
             if (this.isTrackingGesture && this.startX != null && this.startY != null) {
                 const t = e.touches[0];
                 const dx = Math.abs(t.clientX - this.startX);
                 const dy = Math.abs(t.clientY - this.startY);
                 
-                // If horizontal movement exceeds vertical, prevent default to block sidebar gestures
-                if (dx > dy && dx > 10) {
+                // If there's any horizontal movement, prevent default to block sidebar gestures
+                // We'll validate the gesture quality in onTouchEnd
+                if (dx > 5) {
                     e.preventDefault();
-                    e.stopPropagation();
+                    e.stopImmediatePropagation();
                 }
-            }
-            
-            // If movement becomes too vertical, cancel gesture tracking for this sequence
-            if (this.startX == null || this.startY == null) return;
-            const t = e.touches[0];
-            const dy = Math.abs(t.clientY - this.startY);
-            if (dy > VERTICAL_TOLERANCE_PX) {
-                this.reset();
+                
+                // If movement becomes too vertical, cancel gesture tracking
+                if (dy > VERTICAL_TOLERANCE_PX) {
+                    this.reset();
+                }
             }
         }
 
