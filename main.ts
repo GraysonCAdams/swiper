@@ -32,7 +32,6 @@ function createSwipeIndentExtension(getEditor: () => any) {
         private startX: number | null = null;
         private startY: number | null = null;
         private startTime: number = 0;
-        private activeLineNumber: number | null = null; // 0-based
         private isTrackingGesture: boolean = false;
         private EDGE_THRESHOLD_PX = 20; // Distance from screen edge to ignore (prevents sidebar gestures)
 
@@ -66,13 +65,12 @@ function createSwipeIndentExtension(getEditor: () => any) {
                 return;
             }
 
+            // Verify touch is in editor content area
             const pos = this.view.posAtCoords({ x: t.clientX, y: t.clientY });
             if (pos == null) {
-                this.activeLineNumber = null;
                 return;
             }
-            const line = this.view.state.doc.lineAt(pos);
-            this.activeLineNumber = line.number - 1; // 0-based
+            
             this.isTrackingGesture = true;
         }
 
@@ -118,48 +116,50 @@ function createSwipeIndentExtension(getEditor: () => any) {
             const dy = Math.abs(t.clientY - this.startY);
             const duration = Date.now() - this.startTime;
 
+            // Validate swipe: must be horizontal, quick, and meet threshold
             if (duration <= MAX_DURATION_MS && dy <= VERTICAL_TOLERANCE_PX && Math.abs(dx) >= HORIZONTAL_THRESHOLD_PX) {
-                // Prevent default to stop sidebar gesture
+                // Prevent default to stop sidebar gesture (both left and right sidebars)
                 e.preventDefault();
                 e.stopPropagation();
                 
-                if (this.activeLineNumber == null) return;
-                
                 try {
-                    const lineNum = this.activeLineNumber + 1; // Convert to 1-based for CodeMirror
-                    const line = this.view.state.doc.line(lineNum);
-                    const lineText = line.text;
+                    // Get the cursor's current line (the line the cursor is on)
+                    const selection = this.view.state.selection.main;
+                    const cursorLine = this.view.state.doc.lineAt(selection.head);
+                    const lineText = cursorLine.text;
                     
                     // Determine indentation unit (spaces or tabs, typically 2-4 spaces)
                     const indentSize = 2; // Use 2 spaces for indentation
                     const indentString = ' '.repeat(indentSize);
                     
+                    // dx > 0 means finger moved RIGHT (swipe right) → INDENT
+                    // dx < 0 means finger moved LEFT (swipe left) → DEDENT
                     if (dx > 0) {
-                        // Swipe right → indent: add spaces at the start
+                        // Swipe RIGHT → INDENT: add spaces at the start
                         const newText = indentString + lineText;
-                        const newLineStart = line.from + indentString.length;
+                        const newLineStart = cursorLine.from + indentString.length;
                         const transaction = this.view.state.update({
                             changes: {
-                                from: line.from,
-                                to: line.to,
+                                from: cursorLine.from,
+                                to: cursorLine.to,
                                 insert: newText
                             },
                             selection: { anchor: newLineStart, head: newLineStart }
                         });
                         this.view.dispatch(transaction);
-                    } else {
-                        // Swipe left → dedent: remove spaces/tabs at the start
+                    } else if (dx < 0) {
+                        // Swipe LEFT → DEDENT: remove spaces/tabs at the start
                         const match = lineText.match(/^(\s+)/);
                         if (match) {
                             const currentIndent = match[1];
                             // Remove up to indentSize spaces, or all if less
                             const toRemove = Math.min(currentIndent.length, indentSize);
                             const newText = lineText.substring(toRemove);
-                            const newLineStart = line.from;
+                            const newLineStart = cursorLine.from;
                             const transaction = this.view.state.update({
                                 changes: {
-                                    from: line.from,
-                                    to: line.to,
+                                    from: cursorLine.from,
+                                    to: cursorLine.to,
                                     insert: newText
                                 },
                                 selection: { anchor: newLineStart, head: newLineStart }
@@ -178,7 +178,6 @@ function createSwipeIndentExtension(getEditor: () => any) {
         private reset() {
             this.startX = null;
             this.startY = null;
-            this.activeLineNumber = null;
             this.startTime = 0;
             this.isTrackingGesture = false;
         }
