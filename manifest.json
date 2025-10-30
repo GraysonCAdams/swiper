@@ -1,9 +1,9 @@
 {
-    "id": "swiper",
-    "name": "Swiper",
+	"id": "swiper",
+	"name": "Swiper",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-    "description": "iPhone: swipe right/left on a line to indent/dedent.",
+	"description": "iPhone: swipe right/left on a line to indent/dedent.",
 	"author": "Gray Adams",
 	"authorUrl": "https://github.com/GraysonCAdams",
 	"fundingUrl": "https://buymeacoffee.com/grayadams",
