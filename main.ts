@@ -123,29 +123,52 @@ function createSwipeIndentExtension(getEditor: () => any) {
                 e.preventDefault();
                 e.stopPropagation();
                 
-                const editor = getEditor();
-                if (editor && this.activeLineNumber != null) {
-                    // Keep the cursor on the detected line
-                    try {
-                        const line = this.activeLineNumber;
-                        const lineStart = { line, ch: 0 } as any;
-                        const lineEnd = { line, ch: Number.MAX_SAFE_INTEGER } as any;
-                        editor.setSelection(lineStart, lineEnd);
-                        if (dx > 0) {
-                            // Swipe right → indent
-                            if (typeof editor.indentMore === 'function') editor.indentMore();
-                            else if (typeof editor.indent === 'function') editor.indent(true);
-                        } else {
-                            // Swipe left → dedent
-                            if (typeof editor.indentLess === 'function') editor.indentLess();
-                            else if (typeof editor.indent === 'function') editor.indent(false);
+                if (this.activeLineNumber == null) return;
+                
+                try {
+                    const lineNum = this.activeLineNumber + 1; // Convert to 1-based for CodeMirror
+                    const line = this.view.state.doc.line(lineNum);
+                    const lineText = line.text;
+                    
+                    // Determine indentation unit (spaces or tabs, typically 2-4 spaces)
+                    const indentSize = 2; // Use 2 spaces for indentation
+                    const indentString = ' '.repeat(indentSize);
+                    
+                    if (dx > 0) {
+                        // Swipe right → indent: add spaces at the start
+                        const newText = indentString + lineText;
+                        const newLineStart = line.from + indentString.length;
+                        const transaction = this.view.state.update({
+                            changes: {
+                                from: line.from,
+                                to: line.to,
+                                insert: newText
+                            },
+                            selection: { anchor: newLineStart, head: newLineStart }
+                        });
+                        this.view.dispatch(transaction);
+                    } else {
+                        // Swipe left → dedent: remove spaces/tabs at the start
+                        const match = lineText.match(/^(\s+)/);
+                        if (match) {
+                            const currentIndent = match[1];
+                            // Remove up to indentSize spaces, or all if less
+                            const toRemove = Math.min(currentIndent.length, indentSize);
+                            const newText = lineText.substring(toRemove);
+                            const newLineStart = line.from;
+                            const transaction = this.view.state.update({
+                                changes: {
+                                    from: line.from,
+                                    to: line.to,
+                                    insert: newText
+                                },
+                                selection: { anchor: newLineStart, head: newLineStart }
+                            });
+                            this.view.dispatch(transaction);
                         }
-                        // Restore cursor to start of the line selection head
-                        const cur = editor.getCursor();
-                        editor.setCursor({ line: cur.line, ch: 0 } as any);
-                    } catch (_) {
-                        // no-op
                     }
+                } catch (err) {
+                    console.error('Swiper: Error indenting line:', err);
                 }
             }
 
