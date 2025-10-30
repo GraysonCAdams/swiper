@@ -33,14 +33,17 @@ function createSwipeIndentExtension(getEditor: () => any) {
         private startY: number | null = null;
         private startTime: number = 0;
         private activeLineNumber: number | null = null; // 0-based
+        private isTrackingGesture: boolean = false;
+        private EDGE_THRESHOLD_PX = 20; // Distance from screen edge to ignore (prevents sidebar gestures)
 
         constructor(private view: EditorView) {
             this.onTouchStart = this.onTouchStart.bind(this);
             this.onTouchEnd = this.onTouchEnd.bind(this);
             this.onTouchMove = this.onTouchMove.bind(this);
-            view.dom.addEventListener('touchstart', this.onTouchStart, { passive: true });
-            view.dom.addEventListener('touchend', this.onTouchEnd, { passive: true });
-            view.dom.addEventListener('touchmove', this.onTouchMove, { passive: true });
+            // Use non-passive listeners so we can preventDefault to block sidebar gestures
+            view.dom.addEventListener('touchstart', this.onTouchStart, { passive: false });
+            view.dom.addEventListener('touchend', this.onTouchEnd, { passive: false });
+            view.dom.addEventListener('touchmove', this.onTouchMove, { passive: false });
         }
 
         destroy() {
@@ -55,6 +58,13 @@ function createSwipeIndentExtension(getEditor: () => any) {
             this.startX = t.clientX;
             this.startY = t.clientY;
             this.startTime = Date.now();
+            this.isTrackingGesture = false;
+
+            // Don't interfere with edge swipes (which open sidebars) - ignore touches near screen edges
+            const screenWidth = window.innerWidth;
+            if (t.clientX < this.EDGE_THRESHOLD_PX || t.clientX > screenWidth - this.EDGE_THRESHOLD_PX) {
+                return;
+            }
 
             const pos = this.view.posAtCoords({ x: t.clientX, y: t.clientY });
             if (pos == null) {
@@ -63,9 +73,26 @@ function createSwipeIndentExtension(getEditor: () => any) {
             }
             const line = this.view.state.doc.lineAt(pos);
             this.activeLineNumber = line.number - 1; // 0-based
+            this.isTrackingGesture = true;
         }
 
         private onTouchMove(e: TouchEvent) {
+            // Safety check: ensure we have touches
+            if (!e.touches || e.touches.length === 0) return;
+            
+            // If we're tracking a gesture and it's horizontal, prevent default to stop sidebar swipe
+            if (this.isTrackingGesture && this.startX != null && this.startY != null) {
+                const t = e.touches[0];
+                const dx = Math.abs(t.clientX - this.startX);
+                const dy = Math.abs(t.clientY - this.startY);
+                
+                // If horizontal movement exceeds vertical, prevent default to block sidebar gestures
+                if (dx > dy && dx > 10) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }
+            
             // If movement becomes too vertical, cancel gesture tracking for this sequence
             if (this.startX == null || this.startY == null) return;
             const t = e.touches[0];
@@ -76,15 +103,26 @@ function createSwipeIndentExtension(getEditor: () => any) {
         }
 
         private onTouchEnd(e: TouchEvent) {
-            if (this.startX == null || this.startY == null) return;
+            if (!this.isTrackingGesture || this.startX == null || this.startY == null) {
+                this.reset();
+                return;
+            }
+            
             const t = e.changedTouches && e.changedTouches[0] ? e.changedTouches[0] : null;
-            if (!t) return;
+            if (!t) {
+                this.reset();
+                return;
+            }
 
             const dx = t.clientX - this.startX;
             const dy = Math.abs(t.clientY - this.startY);
             const duration = Date.now() - this.startTime;
 
             if (duration <= MAX_DURATION_MS && dy <= VERTICAL_TOLERANCE_PX && Math.abs(dx) >= HORIZONTAL_THRESHOLD_PX) {
+                // Prevent default to stop sidebar gesture
+                e.preventDefault();
+                e.stopPropagation();
+                
                 const editor = getEditor();
                 if (editor && this.activeLineNumber != null) {
                     // Keep the cursor on the detected line
@@ -119,6 +157,7 @@ function createSwipeIndentExtension(getEditor: () => any) {
             this.startY = null;
             this.activeLineNumber = null;
             this.startTime = 0;
+            this.isTrackingGesture = false;
         }
     });
 }
