@@ -1,6 +1,6 @@
 {
   "name": "swiper",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Obsidian plugin: on iPhone, swipe right/left on a line to indent/dedent",
   "main": "main.js",
   "scripts": {
