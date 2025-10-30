@@ -1,0 +1,48 @@
+name: Feature Request
+about: Suggest an idea for the Block Select plugin
+title: "[FEATURE] "
+labels: ["type: feature", "status: needs-triage"]
+assignees: ""
+
+---
+
+## 💡 Feature Description
+
+A clear and concise description of the feature you'd like to see.
+
+## 🎯 Problem Statement
+
+What problem does this feature solve? What is the use case?
+
+**Example:** "I find it frustrating when..."
+
+## ✨ Proposed Solution
+
+How would you like this feature to work?
+
+## 🔄 Alternatives Considered
+
+Have you considered any alternative solutions or workarounds?
+
+## 📊 Priority
+
+How important is this feature to you?
+
+- [ ] Critical - Blocking my workflow
+- [ ] High - Would significantly improve my experience
+- [ ] Medium - Nice to have
+- [ ] Low - Just an idea
+
+## 🖼️ Mockups/Examples
+
+If applicable, add mockups, screenshots, or examples from other tools.
+
+## 📋 Additional Context
+
+Any other context, technical details, or relevant information.
+
+## ✔️ Checklist
+
+- [ ] I have searched existing issues to avoid duplicates
+- [ ] This feature aligns with the plugin's purpose (text selection and header navigation)
+- [ ] I am willing to help test this feature when implemented
