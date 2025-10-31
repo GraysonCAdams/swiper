@@ -33,6 +33,7 @@ function createSwipeIndentExtension(getEditor: () => any) {
         private startY: number | null = null;
         private startTime: number = 0;
         private isTrackingGesture: boolean = false;
+        private swipedLineNumber: number | null = null; // Line number where swipe started (0-based)
         private EDGE_THRESHOLD_PX = 20; // Distance from screen edges to allow sidebar gestures
 
         constructor(private view: EditorView) {
@@ -70,11 +71,14 @@ function createSwipeIndentExtension(getEditor: () => any) {
                 return;
             }
 
-            // Verify touch is in editor content area
+            // Verify touch is in editor content area and get the line number
             const pos = this.view.posAtCoords({ x: t.clientX, y: t.clientY });
             if (pos == null) {
                 return;
             }
+            
+            const line = this.view.state.doc.lineAt(pos);
+            this.swipedLineNumber = line.number - 1; // Store 0-based line number
             
             // Start tracking, but don't prevent default yet - allow normal taps/edits
             this.isTrackingGesture = true;
@@ -128,11 +132,20 @@ function createSwipeIndentExtension(getEditor: () => any) {
                 e.preventDefault();
                 e.stopPropagation();
                 
+                if (this.swipedLineNumber == null) {
+                    this.reset();
+                    return;
+                }
+                
                 try {
-                    // Get the cursor's current line (the line the cursor is on)
-                    const selection = this.view.state.selection.main;
-                    const cursorLine = this.view.state.doc.lineAt(selection.head);
-                    const lineText = cursorLine.text;
+                    // Save cursor position before making changes
+                    const originalSelection = this.view.state.selection.main;
+                    const originalAnchor = originalSelection.anchor;
+                    const originalHead = originalSelection.head;
+                    
+                    // Get the line that was swiped (where finger touched)
+                    const swipedLine = this.view.state.doc.line(this.swipedLineNumber + 1); // Convert to 1-based
+                    const lineText = swipedLine.text;
                     
                     // Determine indentation unit (spaces or tabs, typically 2-4 spaces)
                     const indentSize = 2; // Use 2 spaces for indentation
@@ -143,14 +156,26 @@ function createSwipeIndentExtension(getEditor: () => any) {
                     if (dx > 0) {
                         // Swipe RIGHT → INDENT: add spaces at the start
                         const newText = indentString + lineText;
-                        const newLineStart = cursorLine.from + indentString.length;
+                        
+                        // Calculate new cursor position accounting for added indentation
+                        let newAnchor = originalAnchor;
+                        let newHead = originalHead;
+                        
+                        // If cursor was on the modified line, shift it right by indent amount
+                        if (originalAnchor >= swipedLine.from && originalAnchor <= swipedLine.to) {
+                            newAnchor = originalAnchor + indentString.length;
+                        }
+                        if (originalHead >= swipedLine.from && originalHead <= swipedLine.to) {
+                            newHead = originalHead + indentString.length;
+                        }
+                        
                         const transaction = this.view.state.update({
                             changes: {
-                                from: cursorLine.from,
-                                to: cursorLine.to,
+                                from: swipedLine.from,
+                                to: swipedLine.to,
                                 insert: newText
                             },
-                            selection: { anchor: newLineStart, head: newLineStart }
+                            selection: { anchor: newAnchor, head: newHead }
                         });
                         this.view.dispatch(transaction);
                     } else if (dx < 0) {
@@ -158,17 +183,28 @@ function createSwipeIndentExtension(getEditor: () => any) {
                         const match = lineText.match(/^(\s+)/);
                         if (match) {
                             const currentIndent = match[1];
-                            // Remove up to indentSize spaces, or all if less
                             const toRemove = Math.min(currentIndent.length, indentSize);
                             const newText = lineText.substring(toRemove);
-                            const newLineStart = cursorLine.from;
+                            
+                            // Calculate new cursor position accounting for removed indentation
+                            let newAnchor = originalAnchor;
+                            let newHead = originalHead;
+                            
+                            // If cursor was on the modified line, shift it left by removed amount
+                            if (originalAnchor >= swipedLine.from && originalAnchor <= swipedLine.to) {
+                                newAnchor = Math.max(swipedLine.from, originalAnchor - toRemove);
+                            }
+                            if (originalHead >= swipedLine.from && originalHead <= swipedLine.to) {
+                                newHead = Math.max(swipedLine.from, originalHead - toRemove);
+                            }
+                            
                             const transaction = this.view.state.update({
                                 changes: {
-                                    from: cursorLine.from,
-                                    to: cursorLine.to,
+                                    from: swipedLine.from,
+                                    to: swipedLine.to,
                                     insert: newText
                                 },
-                                selection: { anchor: newLineStart, head: newLineStart }
+                                selection: { anchor: newAnchor, head: newHead }
                             });
                             this.view.dispatch(transaction);
                         }
@@ -186,6 +222,7 @@ function createSwipeIndentExtension(getEditor: () => any) {
             this.startY = null;
             this.startTime = 0;
             this.isTrackingGesture = false;
+            this.swipedLineNumber = null;
         }
     });
 }
