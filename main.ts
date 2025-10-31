@@ -82,9 +82,7 @@ function createSwipeIndentExtension(getEditor: () => any) {
             // If we're tracking a gesture, check for horizontal movement
             if (this.isTrackingGesture && this.startX != null && this.startY != null) {
                 const t = e.touches[0];
-                const screenWidth = window.innerWidth;
-                const rawDx = t.clientX - this.startX;
-                const dx = Math.abs(rawDx);
+                const dx = Math.abs(t.clientX - this.startX);
                 const dy = Math.abs(t.clientY - this.startY);
                 
                 // If horizontal movement exceeds vertical, this is a swipe - block sidebar gestures
