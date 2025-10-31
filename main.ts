@@ -82,12 +82,16 @@ function createSwipeIndentExtension(getEditor: () => any) {
             // If we're tracking a gesture, check for horizontal movement
             if (this.isTrackingGesture && this.startX != null && this.startY != null) {
                 const t = e.touches[0];
-                const dx = Math.abs(t.clientX - this.startX);
+                const screenWidth = window.innerWidth;
+                const rawDx = t.clientX - this.startX;
+                const dx = Math.abs(rawDx);
                 const dy = Math.abs(t.clientY - this.startY);
                 
                 // If horizontal movement exceeds vertical, this is a swipe - block sidebar gestures
-                // Only block if it's clearly a horizontal gesture (dx > dy and significant movement)
+                // Block ANY horizontal swipe in the editor to prevent sidebars from opening
+                // The only allowed edge swipes are those that START at the edge (handled in onTouchStart)
                 if (dx > dy && dx > 15) {
+                    // Block all horizontal swipes - they're for indent/dedent, not sidebars
                     e.preventDefault();
                     e.stopImmediatePropagation();
                 }
