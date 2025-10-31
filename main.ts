@@ -33,7 +33,8 @@ function createSwipeIndentExtension(getEditor: () => any) {
         private startY: number | null = null;
         private startTime: number = 0;
         private isTrackingGesture: boolean = false;
-        private EDGE_THRESHOLD_PX = 20; // Distance from screen edge to ignore (prevents sidebar gestures)
+        private LEFT_EDGE_THRESHOLD_PX = 20; // Distance from left edge to allow left sidebar
+        private RIGHT_EDGE_THRESHOLD_PX = 50; // Distance from right edge to allow right sidebar
 
         constructor(private view: EditorView) {
             this.onTouchStart = this.onTouchStart.bind(this);
@@ -60,8 +61,9 @@ function createSwipeIndentExtension(getEditor: () => any) {
             this.isTrackingGesture = false;
 
             // Don't interfere with edge swipes (which open sidebars) - ignore touches near screen edges
+            // Left edge: 20px threshold, Right edge: 50px threshold
             const screenWidth = window.innerWidth;
-            if (t.clientX < this.EDGE_THRESHOLD_PX || t.clientX > screenWidth - this.EDGE_THRESHOLD_PX) {
+            if (t.clientX < this.LEFT_EDGE_THRESHOLD_PX || t.clientX > screenWidth - this.RIGHT_EDGE_THRESHOLD_PX) {
                 return;
             }
 
