@@ -60,14 +60,12 @@ function createSwipeIndentExtension(getEditor: () => any) {
             this.startTime = Date.now();
             this.isTrackingGesture = false;
 
-            // Don't interfere with edge swipes (which open sidebars) - ignore touches near screen edges
-            // Allow sidebar gestures only from within 20px of either edge
-            const screenWidth = window.innerWidth;
+            // Only allow left sidebar gesture from within 20px of left edge
+            // Right panel swipe is completely disabled
             const isNearLeftEdge = t.clientX < this.EDGE_THRESHOLD_PX;
-            const isNearRightEdge = t.clientX > screenWidth - this.EDGE_THRESHOLD_PX;
             
-            if (isNearLeftEdge || isNearRightEdge) {
-                // Don't track - let Obsidian handle sidebar gesture
+            if (isNearLeftEdge) {
+                // Don't track - let Obsidian handle left sidebar gesture
                 return;
             }
 
