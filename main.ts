@@ -86,10 +86,18 @@ function createSwipeIndentExtension(getEditor: () => any) {
             // Safety check: ensure we have touches
             if (!e.touches || e.touches.length === 0) return;
             
-            // If we're tracking a gesture, check if movement becomes too vertical
+            // If we're tracking a gesture, check for horizontal movement to block left sidebar
             if (this.isTrackingGesture && this.startX != null && this.startY != null) {
                 const t = e.touches[0];
+                const dx = Math.abs(t.clientX - this.startX);
                 const dy = Math.abs(t.clientY - this.startY);
+                
+                // Block horizontal swipes (prevents left sidebar from opening)
+                // Don't worry about right sidebar/panel - can't block it effectively
+                if (dx > dy && dx > 15) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                }
                 
                 // If movement becomes too vertical, cancel gesture tracking (this is a scroll, not a swipe)
                 if (dy > VERTICAL_TOLERANCE_PX) {
